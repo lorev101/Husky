@@ -1,238 +1,217 @@
 import { useState } from "react";
 
 export function StepCard({ step, unlocked, onUnlock, stepNumber, totalSteps }) {
-  const [photo, setPhoto] = useState(null);
-  const [isChecking, setIsChecking] = useState(false);
+  const [positionConfirmed, setPositionConfirmed] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [selectedIndex, setSelectedIndex] = useState(null);
+  const [completed, setCompleted] = useState(false);
+
+  const isDev = true;
 
   const handleLocation = () => {
-    setIsChecking(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
         const near = isNear(latitude, longitude, step.lat, step.lng);
-
-        setTimeout(() => {
-          setIsChecking(false);
-          if (near) {
-            alert("🎉 Posizione corretta! Step sbloccato.");
-            onUnlock();
-          } else {
-            alert("📍 Non sei nel posto giusto. Continua a cercare!");
-          }
-        }, 1000);
+        if (near) {
+          alert("📍 Posizione corretta! Inizia la sfida.");
+          setPositionConfirmed(true);
+        } else {
+          alert("❌ Non sei nel posto giusto.");
+        }
       },
       () => {
-        setIsChecking(false);
-        alert("❌ Impossibile ottenere la posizione. Controlla i permessi.");
+        alert("⚠️ Geolocalizzazione fallita.");
       }
     );
   };
 
-  const cardStyle = {
-    position: "relative",
-    padding: "20px",
-    background: unlocked
-      ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-      : "linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)",
-    borderRadius: "16px",
-    boxShadow: unlocked
-      ? "0 6px 24px rgba(102, 126, 234, 0.2)"
-      : "0 4px 12px rgba(0,0,0,0.05)",
-    marginBottom: "20px",
-    border: "1px solid rgba(255,255,255,0.1)",
-    transition: "all 0.3s ease",
+  const skipToChallenge = () => {
+    setPositionConfirmed(true);
+    alert("🔧 Posizione simulata (dev).");
   };
 
-  const headerStyle = {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "12px",
+  const handleAnswer = (index) => {
+    setSelectedIndex(index);
+    const isCorrect = index === step.challenges[currentQuestion].answerIndex;
+
+    setTimeout(() => {
+      if (isCorrect) {
+        if (currentQuestion + 1 < step.challenges.length) {
+          setCurrentQuestion((prev) => prev + 1);
+          setSelectedIndex(null);
+        } else {
+          alert("🎉 Hai completato questo step!");
+          setCompleted(true);
+          onUnlock();
+        }
+      } else {
+        alert("❌ Risposta errata. Riprova.");
+      }
+    }, 500);
   };
 
-  const titleStyle = {
-    fontSize: "18px",
-    fontWeight: "700",
-    color: unlocked ? "#ffffff" : "#343a40",
-    margin: 0,
-  };
+  // Bloccato
+  if (!unlocked) {
+    return (
+      <div style={lockedCardStyle}>
+        <h3 style={lockedTitle}>🔒 Step {stepNumber}</h3>
+        <p style={lockedSubtitle}>Completa i passi precedenti per sbloccare</p>
+      </div>
+    );
+  }
 
-  const badgeStyle = {
-    backgroundColor: unlocked ? "rgba(255,255,255,0.2)" : "#6c757d",
-    color: "#fff",
-    fontSize: "12px",
-    padding: "4px 10px",
-    borderRadius: "12px",
-    fontWeight: "600",
-  };
-
-  const descriptionStyle = {
-    fontSize: "15px",
-    color: unlocked ? "#f8f9fa" : "#6c757d",
-    marginBottom: "16px",
-  };
-
-  const inputStyle = {
-    display: "block",
-    width: "100%",
-    maxWidth: "100%",
-    marginBottom: "12px",
-    padding: "10px",
-    borderRadius: "10px",
-    border: "1px solid rgba(255,255,255,0.3)",
-    backgroundColor: unlocked ? "rgba(255,255,255,0.1)" : "#e9ecef",
-    color: unlocked ? "#fff" : "#343a40",
-    fontSize: "14px",
-    outline: "none",
-    boxSizing: "border-box",
-    overflow: "hidden",
-    whiteSpace: "nowrap",
-    textOverflow: "ellipsis",
-  };
-
-  const buttonStyle = {
-    width: "100%",
-    padding: "12px",
-    fontSize: "14px",
-    fontWeight: "600",
-    borderRadius: "25px",
-    border: "none",
-    cursor: unlocked ? "pointer" : "not-allowed",
-    background: unlocked
-      ? "linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)"
-      : "#adb5bd",
-    color: "#fff",
-    opacity: isChecking ? 0.6 : 1,
-    transition: "all 0.3s ease",
-  };
-
-  const loaderStyle = {
-    width: "16px",
-    height: "16px",
-    border: "2px solid rgba(255,255,255,0.3)",
-    borderTop: "2px solid #fff",
-    borderRadius: "50%",
-    animation: "spin 1s linear infinite",
-    marginRight: "8px",
-  };
+  const challenge = step.challenges[currentQuestion];
+  const progress = ((currentQuestion + (completed ? 1 : 0)) / step.challenges.length) * 100;
 
   return (
     <div style={cardStyle}>
-      {unlocked && (
-        <div
-          style={{
-            position: "absolute",
-            top: "-10px",
-            right: "-10px",
-            width: "30px",
-            height: "30px",
-            borderRadius: "50%",
-            background: "linear-gradient(45deg, #ffd700, #ffed4e)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "14px",
-            boxShadow: "0 2px 6px rgba(255, 215, 0, 0.4)",
-          }}
-        >
-          ✨
-        </div>
-      )}
-
-      <div style={headerStyle}>
-        <h2 style={titleStyle}>{step.name}</h2>
-        <span style={badgeStyle}>
-          {stepNumber}/{totalSteps}
-        </span>
+      <div style={progressBarContainer}>
+        <div style={{ ...progressBar, width: `${progress}%` }} />
       </div>
 
-      <p style={descriptionStyle}>{step.description}</p>
+      <h2 style={titleStyle}>
+        {step.name} <span style={badgeStyle}>Step {stepNumber}/{totalSteps}</span>
+      </h2>
 
-      {unlocked ? (
-        <div>
-          <div style={{ marginBottom: "12px", width: "100%" }}>
-            <label
-              htmlFor={`photo-upload-${step.id}`}
+      <p style={descStyle}>{step.description}</p>
+
+      {!positionConfirmed ? (
+        <>
+          <button style={btnStyle} onClick={handleLocation}>
+            📍 Invia posizione
+          </button>
+          {isDev && (
+            <button style={{ ...btnStyle, backgroundColor: "#6c757d" }} onClick={skipToChallenge}>
+              ⚙️ Salta posizione (dev)
+            </button>
+          )}
+        </>
+      ) : !completed ? (
+        <>
+          <p style={questionStyle}>❓ {challenge.question}</p>
+          {challenge.options.map((option, idx) => (
+            <button
+              key={idx}
+              onClick={() => handleAnswer(idx)}
               style={{
-                display: "inline-block",
-                width: "100%",
-                padding: "12px",
-                fontSize: "14px",
-                fontWeight: "600",
-                textAlign: "center",
-                borderRadius: "25px",
-                background: "linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)",
-                color: "#fff",
-                cursor: "pointer",
-                boxSizing: "border-box", // ✅ impedisce overflow per padding
-                overflow: "hidden", // ✅ previene testi lunghi che traboccano
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
+                ...optionStyle,
+                backgroundColor:
+                  selectedIndex === idx
+                    ? idx === challenge.answerIndex
+                      ? "#28a745"
+                      : "#dc3545"
+                    : "#007bff"
               }}
             >
-              📷 Carica foto
-            </label>
-
-            <input
-              id={`photo-upload-${step.id}`}
-              type="file"
-              accept="image/*"
-              onChange={(e) => setPhoto(e.target.files[0])}
-              style={{ display: "none" }}
-            />
-          </div>
-
-          <button
-            onClick={handleLocation}
-            disabled={isChecking}
-            style={buttonStyle}
-          >
-            {isChecking ? (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <div style={loaderStyle}></div>Verifica...
-              </div>
-            ) : (
-              <>📍 Invia posizione</>
-            )}
-          </button>
-
-          {/* Spinner CSS */}
-          <style>
-            {`
-              @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-              }
-            `}
-          </style>
-        </div>
+              {option}
+            </button>
+          ))}
+        </>
       ) : (
-        <div
-          style={{
-            padding: "12px",
-            backgroundColor: "#f1f3f5",
-            borderRadius: "10px",
-            textAlign: "center",
-            fontSize: "14px",
-            color: "#6c757d",
-            fontStyle: "italic",
-          }}
-        >
-          🔒 Completa il passo precedente per sbloccare
-        </div>
+        <p style={completedStyle}>✅ Step completato!</p>
       )}
     </div>
   );
 }
 
-// ✅ Bug fix: corretto il confronto delle longitudini
-export function isNear(lat1, lng1, lat2, lng2, threshold = 0.001) {
+// --- STILI ---
+
+const cardStyle = {
+  background: "#fff",
+  borderRadius: "16px",
+  boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+  padding: "20px",
+  marginBottom: "24px"
+};
+
+const progressBarContainer = {
+  height: "8px",
+  backgroundColor: "#e9ecef",
+  borderRadius: "6px",
+  overflow: "hidden",
+  marginBottom: "16px"
+};
+
+const progressBar = {
+  height: "100%",
+  background: "linear-gradient(90deg, #00c6ff, #0072ff)",
+  transition: "width 0.3s ease"
+};
+
+const titleStyle = {
+  fontSize: "20px",
+  fontWeight: "700",
+  marginBottom: "8px"
+};
+
+const badgeStyle = {
+  fontSize: "13px",
+  marginLeft: "10px",
+  color: "#999"
+};
+
+const descStyle = {
+  fontSize: "15px",
+  color: "#555",
+  marginBottom: "16px"
+};
+
+const questionStyle = {
+  fontWeight: "600",
+  marginBottom: "10px"
+};
+
+const btnStyle = {
+  display: "block",
+  width: "100%",
+  padding: "12px",
+  marginBottom: "12px",
+  fontSize: "14px",
+  fontWeight: "600",
+  backgroundColor: "#007bff",
+  color: "#fff",
+  border: "none",
+  borderRadius: "8px",
+  cursor: "pointer"
+};
+
+const optionStyle = {
+  ...btnStyle,
+  marginBottom: "8px"
+};
+
+const completedStyle = {
+  fontWeight: "600",
+  color: "#28a745",
+  textAlign: "center",
+  marginTop: "12px"
+};
+
+const lockedCardStyle = {
+  padding: "20px",
+  backgroundColor: "#f1f3f5",
+  borderRadius: "16px",
+  textAlign: "center",
+  marginBottom: "24px",
+  border: "1px dashed #ced4da"
+};
+
+const lockedTitle = {
+  fontSize: "18px",
+  fontWeight: "600",
+  marginBottom: "8px",
+  color: "#6c757d"
+};
+
+const lockedSubtitle = {
+  fontSize: "14px",
+  color: "#999"
+};
+
+// --- PROXIMITY CHECK ---
+
+function isNear(lat1, lng1, lat2, lng2, threshold = 0.001) {
   const dLat = Math.abs(lat1 - lat2);
   const dLng = Math.abs(lng1 - lng2);
   return dLat <= threshold && dLng <= threshold;
